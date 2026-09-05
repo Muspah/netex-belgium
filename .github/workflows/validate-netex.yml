@@ -1,0 +1,77 @@
+name: Validate NeTEx (Belgium)
+
+on:
+  workflow_dispatch: {}
+  repository_dispatch:
+    types: [netex-sync-complete]
+
+concurrency:
+  group: netex-validate
+  cancel-in-progress: true
+
+env:
+  NETEX_URL: https://data.gtfs.be/belgium/netex/schedule/netex-be-schedule.zip
+  STOPPLACES_URL: https://data.gtfs.be/belgium/netex/stops/spr-stopplaces.zip
+  NETEX_SCHEMA_REF: v1.3.1       # pin — don't float on master
+  EPIP_SCHEMA_REF: master        # EPIP repo has no tags; pin a commit SHA once reviewed
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log trigger source
+        run: echo "Triggered by ${{ github.event.client_payload.triggered_by || github.event_name }}"
+
+      - name: Install libxml2 tools
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils unzip
+
+      - name: Download NeTEx schedule export
+        run: curl -fL -o netex.zip "$NETEX_URL"
+
+      - name: Download NeTEx stopplaces export
+        run: curl -fL -o stopplaces.zip "$STOPPLACES_URL"
+
+      - name: Unpack data
+        run: |
+          mkdir -p data/schedule data/stopplaces
+          unzip -o netex.zip -d data/schedule
+          unzip -o stopplaces.zip -d data/stopplaces
+          echo "Schedule files:"; find data/schedule -name '*.xml'
+          echo "Stopplaces files:"; find data/stopplaces -name '*.xml'
+
+      - name: Cache NeTEx XSDs
+        id: cache-xsd
+        uses: actions/cache@v4
+        with:
+          path: schemas
+          key: netex-xsd-${{ env.NETEX_SCHEMA_REF }}-epip-${{ env.EPIP_SCHEMA_REF }}
+
+      - name: Download XSDs
+        if: steps.cache-xsd.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p schemas
+          curl -fL -o netex.tar.gz \
+            "https://github.com/TransmodelEcosystem/NeTEx/archive/refs/tags/${NETEX_SCHEMA_REF}.tar.gz"
+          tar xzf netex.tar.gz -C schemas --strip-components=1
+
+          curl -fL -o epip.tar.gz \
+            "https://github.com/TransmodelEcosystem/NeTEx-Profile-EPIP/archive/${EPIP_SCHEMA_REF}.tar.gz"
+          mkdir -p schemas/epip
+          tar xzf epip.tar.gz -C schemas/epip --strip-components=1
+
+      - name: Validate schedule + stopplaces against generic EPIP (structural only)
+        run: |
+          set -e
+          fail=0
+          for f in $(find data -name '*.xml'); do
+            echo "== Validating $f =="
+            xmllint --noout --schema schemas/epip/NeTEx_publication_EPIP-NoConstraint.xsd "$f" 2>>validation.log || fail=1
+          done
+          exit $fail
+
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: netex-validation-logs
+          path: validation.log
