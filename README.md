@@ -18,11 +18,12 @@ This repository validates Belgian NeTEx EPIP exports.
 import zmq
 
 context = zmq.Context()
-socket = context.socket(zmq.SUB)
+socket = context.socket(zmq.XSUB)
 socket.connect("tcp://sub.gtfs.be:9100")
 
-# Subscribe to SIRI envelopes
-socket.setsockopt_string(zmq.SUBSCRIBE, "/SIRI")
+# XSUB requires subscriptions to be sent manually as a message:
+# a leading 0x01 byte followed by the topic prefix to subscribe to
+socket.send(b"\x01/SIRI")
 
 print("Listening for SIRI messages...")
 
