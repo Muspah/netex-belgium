@@ -16,10 +16,12 @@ This repository validates Belgian NeTEx EPIP exports.
 
 ```python
 import zmq
+import gzip
+import json
 
 context = zmq.Context()
 socket = context.socket(zmq.XSUB)
-socket.connect("tcp://sub.gtfs.be:9100")
+socket.connect("tcp://sub.gtfs.be:9200")
 
 # XSUB requires subscriptions to be sent manually as a message:
 # a leading 0x01 byte followed by the topic prefix to subscribe to
@@ -29,10 +31,15 @@ print("Listening for SIRI messages...")
 
 try:
     while True:
-        message = socket.recv_multipart()
-        print(message)
+        frames = socket.recv_multipart()
+        envelope = frames[0].decode('utf-8')
+        content = b''.join(frames[1:])
+        payload = gzip.decompress(content).decode('utf-8')
+
+        print('Envelope: %s', envelope)
+        print('Message: %s', payload)
 except KeyboardInterrupt:
-    print("Stopping...")
+    print('Stopping...')
 finally:
     socket.close()
     context.term()
