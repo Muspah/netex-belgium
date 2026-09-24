@@ -1,0 +1,48 @@
+name: Validate GTFS (Belgium, legacy)
+
+on:
+  workflow_dispatch: {}
+  repository_dispatch:
+    types: [gtfs-sync-complete]
+
+concurrency:
+  group: gtfs-validate
+  cancel-in-progress: true
+
+env:
+  GTFS_URL: https://data.gtfs.be/belgium/gtfs/be-gtfs.zip
+
+jobs:
+  validate-gtfs:
+    name: Validate GTFS (MobilityData validator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Download latest gtfs-validator CLI JAR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download --repo MobilityData/gtfs-validator --pattern '*-cli.jar' --output gtfs-validator-cli.jar
+
+      - name: Download GTFS feed
+        run: curl -fL -o be-gtfs.zip "$GTFS_URL"
+
+      - name: Validate GTFS feed
+        run: java -Xmx4g -jar gtfs-validator-cli.jar --input be-gtfs.zip --output_base report --country_code BE
+
+      - name: Summarize and fail on errors
+        run: |
+          jq -r '.notices[] | "\(.severity)\t\(.code)\t\(.totalNotices)"' report/report.json | sort | tee summary.txt
+          ! grep -q '^ERROR' summary.txt
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gtfs-validation-report
+          path: report
