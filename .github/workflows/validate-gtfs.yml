@@ -33,7 +33,7 @@ jobs:
         run: curl -fL -o be-gtfs.zip "$GTFS_URL"
 
       - name: Validate GTFS feed
-        run: java -Xmx12g -jar gtfs-validator-cli.jar --input be-gtfs.zip --output_base report --country_code BE
+        run: java -Xmx12g -XX:+ExitOnOutOfMemoryError -jar gtfs-validator-cli.jar --input be-gtfs.zip --output_base report --country_code BE
 
       - name: Summarize and fail on errors
         run: |
