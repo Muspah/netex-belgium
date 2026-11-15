@@ -9,7 +9,7 @@ This repository validates Belgian NeTEx EPIP exports.
 - **Legacy GTFS download:** https://data.gtfs.be/belgium/gtfs/be-gtfs.zip (validated with the latest [MobilityData gtfs-validator](https://github.com/MobilityData/gtfs-validator))
 - **NeTEx EPIP download:** https://data.gtfs.be/belgium/netex/schedule/netex-be-schedule.zip
 - **Stop place register export (EPIP):** https://data.gtfs.be/belgium/netex/stops/spr-stopplaces.zip
-- **SIRI:** can be received as XML on ZeroMQ XSUB `tcp://sub.gtfs.be:9100`. Envelopes start with `/SIRI`.
+- **SIRI:** can be received as XML on ZeroMQ XSUB `tcp://sub.gtfs.be:9200`. Envelopes start with `/SIRI`.
 
 > **Note:** Use one ZeroMQ connection per consumer. To re-transmit internally, use [Universal](https://github.com/StichtingOpenGeo/universal).
 
@@ -44,6 +44,24 @@ except KeyboardInterrupt:
 finally:
     socket.close()
     context.term()
+```
+
+## Example: serving SIRI to OpenTripPlanner
+
+[`scripts/siri-server.py`](scripts/siri-server.py) listens on the ZeroMQ feed, keeps the latest state per journey/situation and serves it over HTTP:
+
+```sh
+pip install pyzmq
+python3 scripts/siri-server.py 8080   # GET /siri/et and /siri/sx
+```
+
+OTP `router-config.json` (OTP 2.6+):
+
+```json
+"updaters": [
+  { "type": "siri-et-lite", "feedId": "GTFSBE", "url": "http://localhost:8080/siri/et", "frequency": "30s" },
+  { "type": "siri-sx-lite", "feedId": "GTFSBE", "url": "http://localhost:8080/siri/sx", "frequency": "1m" }
+]
 ```
 
 ## Service level
