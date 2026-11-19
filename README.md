@@ -7,7 +7,7 @@ This repository validates Belgian NeTEx EPIP exports.
 ## Data sources
 
 - **Legacy GTFS download:** https://data.gtfs.be/belgium/gtfs/be-gtfs.zip (validated with the latest [MobilityData gtfs-validator](https://github.com/MobilityData/gtfs-validator))
-- **NeTEx EPIP download:** https://data.gtfs.be/belgium/netex/schedule/netex-be-schedule.zip
+- **NeTEx EPIP network offer:** https://data.gtfs.be/belgium/netex/schedule/netex-be-network-offer.xml.gz
 - **Stop place register export (EPIP):** https://data.gtfs.be/belgium/netex/stops/spr-stopplaces.zip
 - **SIRI:** can be received as XML on ZeroMQ XSUB `tcp://sub.gtfs.be:9200`. Envelopes start with `/SIRI`.
 

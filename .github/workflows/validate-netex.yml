@@ -11,6 +11,7 @@ concurrency:
 
 env:
   NETWORK_OFFER_URL: https://data.gtfs.be/belgium/netex/schedule/netex-be-network-offer.xml.gz
+  STOPPLACES_URL: https://data.gtfs.be/belgium/netex/stops/spr-stopplaces.zip
   NETEX_SCHEMA_REF: v1.3.1       # pin — don't float on master
   EPIP_SCHEMA_REF: master        # EPIP repo has no tags; pin a commit SHA once reviewed
 
@@ -35,14 +36,17 @@ jobs:
       - name: Compile XSD validator
         run: javac -d build scripts/XsdValidate.java
 
-      - name: Download NeTEx network offer export
-        run: curl -fL -o netex.xml.gz "$NETWORK_OFFER_URL"
+      - name: Download NeTEx exports
+        run: |
+          curl -fL -o netex.xml.gz "$NETWORK_OFFER_URL"
+          curl -fL -o spr-stopplaces.zip "$STOPPLACES_URL"
 
       - name: Unpack data
         run: |
           mkdir -p data
           gunzip -c netex.xml.gz > data/netex-be-network-offer.xml
-          echo "Network offer files:"; find data -name '*.xml'
+          unzip -o spr-stopplaces.zip -d data
+          echo "NeTEx files:"; find data -name '*.xml'
 
       - name: Cache NeTEx XSDs
         id: cache-xsd
@@ -64,7 +68,7 @@ jobs:
           mkdir -p schemas/epip
           tar xzf epip.tar.gz -C schemas/epip --strip-components=1
 
-      - name: Validate network offer against generic EPIP (structural only)
+      - name: Validate NeTEx exports against generic EPIP (structural only)
         run: |
           java -Xmx4g -cp build XsdValidate schemas/epip/NeTEx_publication_EPIP-NoConstraint.xsd $(find data -name '*.xml') 2>&1 | tee validation.log
           exit ${PIPESTATUS[0]}
@@ -97,14 +101,17 @@ jobs:
       - name: Compile XSD validator
         run: javac -d build scripts/XsdValidate.java
 
-      - name: Download NeTEx network offer export
-        run: curl -fL -o netex.xml.gz "$NETWORK_OFFER_URL"
+      - name: Download NeTEx exports
+        run: |
+          curl -fL -o netex.xml.gz "$NETWORK_OFFER_URL"
+          curl -fL -o spr-stopplaces.zip "$STOPPLACES_URL"
 
       - name: Unpack data
         run: |
           mkdir -p data
           gunzip -c netex.xml.gz > data/netex-be-network-offer.xml
-          echo "Network offer files:"; find data -name '*.xml'
+          unzip -o spr-stopplaces.zip -d data
+          echo "NeTEx files:"; find data -name '*.xml'
 
       - name: Cache NeTEx XSDs
         id: cache-xsd
@@ -126,7 +133,7 @@ jobs:
           mkdir -p schemas/epip
           tar xzf epip.tar.gz -C schemas/epip --strip-components=1
 
-      - name: Validate network offer against generic EPIP (with constraints)
+      - name: Validate NeTEx exports against generic EPIP (with constraints)
         run: |
           java -Xmx4g -cp build XsdValidate schemas/epip/NeTEx_publication_EPIP.xsd $(find data -name '*.xml') 2>&1 | tee validation.log
           exit ${PIPESTATUS[0]}
